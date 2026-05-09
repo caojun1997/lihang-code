@@ -45,7 +45,17 @@ func InitMySQL(cfg *config.DatabaseConfig) error {
 }
 
 func autoMigrate() error {
-	return db.AutoMigrate(&model.ParseTask{}, &model.ParseResult{})
+	return db.AutoMigrate(
+		&model.ParseTask{},
+		&model.ParseResult{},
+		&model.User{},
+		&model.Session{},
+		&model.CodeExchange{},
+	)
+}
+
+func AutoMigrate() error {
+	return autoMigrate()
 }
 
 func GetDB() *gorm.DB {

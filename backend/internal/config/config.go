@@ -15,6 +15,7 @@ type Config struct {
 	Upload    UploadConfig    `mapstructure:"upload"`
 	Result    ResultConfig    `mapstructure:"result"`
 	RateLimit RateLimitConfig `mapstructure:"ratelimit"`
+	OAuth     OAuthConfig    `mapstructure:"oauth"`
 }
 
 type AppConfig struct {
@@ -60,6 +61,18 @@ type ResultConfig struct {
 
 type RateLimitConfig struct {
 	RequestsPerMinute int `mapstructure:"requests_per_minute"`
+}
+
+type OAuthConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	AuthURL      string `mapstructure:"auth_url"`
+	TokenURL     string `mapstructure:"token_url"`
+	UserInfoURL  string `mapstructure:"user_info_url"`
+	RedirectURI  string `mapstructure:"redirect_uri"`
+	APIKeyURL    string `mapstructure:"api_key_url"`
+	LogoutURL    string `mapstructure:"logout_url"`
+	WellKnownURL string `mapstructure:"well_known_url"`
 }
 
 var GlobalConfig *Config

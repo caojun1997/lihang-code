@@ -12,6 +12,7 @@ import (
 	"pdf-parser/internal/handler"
 	"pdf-parser/internal/middleware"
 	"pdf-parser/internal/mineru"
+	"pdf-parser/internal/oauth"
 	"pdf-parser/internal/repository"
 	"pdf-parser/internal/service"
 	"pdf-parser/pkg/database"
@@ -40,9 +41,18 @@ func main() {
 	}
 	defer database.CloseRedis()
 
+	if err := database.AutoMigrate(); err != nil {
+		logger.Fatal("Failed to migrate database", zap.Error(err))
+	}
+
 	taskRepo := repository.NewTaskRepository()
 	resultRepo := repository.NewResultRepository()
 	cacheRepo := repository.NewCacheRepository()
+	userRepo := repository.NewUserRepository()
+	sessionRepo := repository.NewSessionRepository()
+
+	_ = userRepo
+	_ = sessionRepo
 
 	fileStorage, err := service.NewFileStorage(cfg.Upload.StoragePath)
 	if err != nil {
@@ -59,8 +69,10 @@ func main() {
 		cfg,
 	)
 
+	oauthClient := oauth.NewOAuthClient(&cfg.OAuth)
 	taskHandler := handler.NewTaskHandler(taskService)
-	h := handler.NewHandler(taskHandler)
+	authHandler := handler.NewAuthHandler(oauthClient)
+	h := handler.NewHandler(taskHandler, authHandler)
 
 	if cfg.App.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
