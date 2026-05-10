@@ -1,12 +1,14 @@
 package main
 
 import (
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/songquanpeng/go-api-starter/common"
 	"github.com/songquanpeng/go-api-starter/common/client"
 	"github.com/songquanpeng/go-api-starter/common/config"
@@ -17,6 +19,10 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
+	}
+
 	common.Init()
 	logger.SetupLogger()
 	logger.SysLogf("PDF Parser %s started", common.Version)
@@ -29,15 +35,29 @@ func main() {
 		logger.SysLog("running in debug mode")
 	}
 
-	if err := config.InitConfig("./configs/config.yaml"); err != nil {
-		logger.FatalLog("Failed to initialize config: " + err.Error())
+	configPaths := []string{
+		"./configs/config.yaml",
+		"./config.yaml",
+		"/etc/pdf-parser/config.yaml",
+	}
+
+	var initErr error
+	for _, path := range configPaths {
+		initErr = config.InitConfig(path)
+		if initErr == nil {
+			logger.SysLogf("Config loaded from: %s", path)
+			break
+		}
+	}
+
+	if initErr != nil {
+		logger.FatalLog("Failed to initialize config: " + initErr.Error())
 	}
 
 	model.InitDB()
 	logger.SysLog("Database initialized")
 
-	var err error
-	err = common.InitRedisClient()
+	err := common.InitRedisClient()
 	if err != nil {
 		logger.FatalLog("Failed to initialize Redis: " + err.Error())
 	}
@@ -45,14 +65,14 @@ func main() {
 	common.RateLimiter.Init(60)
 
 	controller.InitOAuth(&client.OAuthConfig{
-		ClientID:    config.GlobalConfig.OAuth.ClientID,
+		ClientID:     config.GlobalConfig.OAuth.ClientID,
 		ClientSecret: config.GlobalConfig.OAuth.ClientSecret,
-		AuthURL:     config.GlobalConfig.OAuth.AuthURL,
-		TokenURL:    config.GlobalConfig.OAuth.TokenURL,
-		UserInfoURL: config.GlobalConfig.OAuth.UserInfoURL,
-		RedirectURI: config.GlobalConfig.OAuth.RedirectURI,
-		APIKeyURL:   config.GlobalConfig.OAuth.APIKeyURL,
-		LogoutURL:   config.GlobalConfig.OAuth.LogoutURL,
+		AuthURL:      config.GlobalConfig.OAuth.AuthURL,
+		TokenURL:     config.GlobalConfig.OAuth.TokenURL,
+		UserInfoURL:  config.GlobalConfig.OAuth.UserInfoURL,
+		RedirectURI:  config.GlobalConfig.OAuth.RedirectURI,
+		APIKeyURL:    config.GlobalConfig.OAuth.APIKeyURL,
+		LogoutURL:    config.GlobalConfig.OAuth.LogoutURL,
 		WellKnownURL: config.GlobalConfig.OAuth.WellKnownURL,
 	})
 
@@ -70,7 +90,9 @@ func main() {
 		}
 	}
 
-	logger.SysLogf("Server started on http://localhost:%s", port)
+	logger.SysLogf("Server started on http://0.0.0.0:%s", port)
+	logger.SysLog("API文档: http://localhost:" + port + "/api/v1")
+	logger.SysLog("前端页面: http://localhost:" + port)
 	err = server.Run(":" + port)
 	if err != nil {
 		logger.FatalLog("Failed to start HTTP server: " + err.Error())

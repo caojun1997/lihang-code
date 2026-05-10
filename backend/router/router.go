@@ -1,11 +1,19 @@
 package router
 
 import (
+	"embed"
+	"io/fs"
+	"net/http"
+	"path"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/go-api-starter/common/config"
 	"github.com/songquanpeng/go-api-starter/controller"
 	"github.com/songquanpeng/go-api-starter/middleware"
 )
+
+//go:embed static/*
+var dist embed.FS
 
 var (
 	taskController *controller.TaskController
@@ -25,6 +33,28 @@ func SetRouter(r *gin.Engine) {
 	middleware.CORS()
 
 	r.GET("/health", taskController.HealthCheck)
+
+	assets, _ := fs.Sub(dist, "static")
+
+	staticHandler := http.FileServer(http.FS(assets))
+
+	r.NoRoute(func(c *gin.Context) {
+		requestPath := c.Request.URL.Path
+
+		if _, err := assets.Open(requestPath); err == nil {
+			staticHandler.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		if _, err := assets.Open(path.Join(requestPath, "index.html")); err == nil {
+			c.Request.URL.Path = path.Join(requestPath, "index.html")
+			staticHandler.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		c.Request.URL.Path = "/"
+		staticHandler.ServeHTTP(c.Writer, c.Request)
+	})
 
 	v1 := r.Group("/api/v1")
 	{

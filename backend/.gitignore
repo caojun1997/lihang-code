@@ -1,0 +1,30 @@
+# 二进制文件
+pdf-parser
+*.exe
+
+# 嵌入的前端资源
+router/static/
+embed/
+
+# 配置文件
+.env
+config.yaml
+
+# 日志和上传
+logs/
+uploads/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.test
+coverage.out

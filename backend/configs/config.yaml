@@ -1,40 +1,40 @@
 server:
-  port: 8080
-  mode: "debug"
-  host: "0.0.0.0"
+  port: ${PORT:-3000}
+  mode: ${GIN_MODE:-release}
+  host: ${HOST:-0.0.0.0}
 
 database:
-  host: "localhost"
-  port: 3306
-  username: "root"
-  password: "password"
-  name: "pdf_parser"
+  host: ${DB_HOST:-localhost}
+  port: ${DB_PORT:-3306}
+  username: ${DB_USERNAME:-root}
+  password: ${DB_PASSWORD:-password}
+  name: ${DB_NAME:-pdf_parser}
   max_idle_conns: 10
   max_open_conns: 100
 
 redis:
-  host: "localhost"
-  port: 6379
-  password: ""
-  db: 0
+  host: ${REDIS_HOST:-localhost}
+  port: ${REDIS_PORT:-6379}
+  password: ${REDIS_PASSWORD:-}
+  db: ${REDIS_DB:-0}
 
 minoru:
-  mode: "flash"
-  base_url: "https://api.302.ai"
-  api_key: ""
-  timeout: 300
+  mode: ${MINERU_MODE:-flash}
+  base_url: ${MINERU_BASE_URL:-https://api.mineru.cn/api/v1}
+  api_key: ${MINERU_API_KEY:-}
+  timeout: ${MINERU_TIMEOUT:-120}
 
 upload:
-  max_size: 10485760
-  storage_path: "./uploads"
+  max_size: ${UPLOAD_MAX_SIZE:-104857600}
+  storage_path: ${UPLOAD_STORAGE_PATH:-./uploads}
 
 oauth:
-  client_id: "your-client-id"
-  client_secret: "your-client-secret"
-  auth_url: "http://192.168.30.21:6500/aaacenter-api/oauth/v20/authorize"
-  token_url: "http://192.168.30.21:6500/aaacenter-api/oauth/v20/token"
-  user_info_url: "http://192.168.30.21:6500/aaacenter-api/api/oauth/v20/user/info"
-  redirect_uri: "http://localhost:8080/api/v1/auth/callback"
-  api_key_url: "http://192.168.30.21:6500/aaacenter-api/api/oauth/v20/user/apikey"
-  logout_url: "http://192.168.30.21:6500/force/logout"
-  well_known_url: "http://192.168.30.21:6500/aaacenter-api/auth/oauth/v20/.well-known/oauth-authorization-server"
+  client_id: ${OAUTH_CLIENT_ID:-}
+  client_secret: ${OAUTH_CLIENT_SECRET:-}
+  auth_url: ${OAUTH_AUTH_URL:-}
+  token_url: ${OAUTH_TOKEN_URL:-}
+  user_info_url: ${OAUTH_USER_INFO_URL:-}
+  redirect_uri: ${OAUTH_REDIRECT_URI:-http://localhost:3000/api/v1/auth/callback}
+  api_key_url: ${OAUTH_API_KEY_URL:-}
+  logout_url: ${OAUTH_LOGOUT_URL:-}
+  well_known_url: ${OAUTH_WELL_KNOWN_URL:-}
