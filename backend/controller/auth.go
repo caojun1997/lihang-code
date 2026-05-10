@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -53,12 +52,12 @@ func (h *AuthController) HandleCallback(c *gin.Context) {
 
 	codeExchange, err := getCodeExchange(state)
 	if err != nil {
-		common.Error(c, http.StatusBadRequest, common.CodeInvalidParameters, "Invalid state parameter")
+		common.ParamError(c, "Invalid state parameter")
 		return
 	}
 
 	if codeExchange.Used {
-		common.Error(c, http.StatusBadRequest, common.CodeInvalidParameters, "Code already used")
+		common.ParamError(c, "Code already used")
 		return
 	}
 
@@ -114,7 +113,7 @@ func (h *AuthController) HandleCallback(c *gin.Context) {
 func (h *AuthController) GetCurrentUser(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
-		common.Error(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated")
+		common.Unauthorized(c, "User not authenticated")
 		return
 	}
 	common.Success(c, user)
@@ -123,7 +122,7 @@ func (h *AuthController) GetCurrentUser(c *gin.Context) {
 func (h *AuthController) RefreshToken(c *gin.Context) {
 	session, exists := c.Get("session")
 	if !exists {
-		common.Error(c, http.StatusUnauthorized, common.CodeUnauthorized, "Session not found")
+		common.Unauthorized(c, "Session not found")
 		return
 	}
 
@@ -173,7 +172,7 @@ func (h *AuthController) Logout(c *gin.Context) {
 func (h *AuthController) GetAPIKey(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
-		common.Error(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated")
+		common.Unauthorized(c, "User not authenticated")
 		return
 	}
 

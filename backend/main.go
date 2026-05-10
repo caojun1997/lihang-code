@@ -14,6 +14,7 @@ import (
 	"github.com/songquanpeng/go-api-starter/common/config"
 	"github.com/songquanpeng/go-api-starter/common/logger"
 	"github.com/songquanpeng/go-api-starter/controller"
+	"github.com/songquanpeng/go-api-starter/middleware"
 	"github.com/songquanpeng/go-api-starter/model"
 	"github.com/songquanpeng/go-api-starter/router"
 )
@@ -23,16 +24,8 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
-	common.Init()
-	logger.SetupLogger()
-	logger.SysLogf("PDF Parser %s started", common.Version)
-
 	if os.Getenv("GIN_MODE") != gin.DebugMode {
 		gin.SetMode(gin.ReleaseMode)
-	}
-
-	if config.DebugEnabled {
-		logger.SysLog("running in debug mode")
 	}
 
 	configPaths := []string{
@@ -45,21 +38,35 @@ func main() {
 	for _, path := range configPaths {
 		initErr = config.InitConfig(path)
 		if initErr == nil {
-			logger.SysLogf("Config loaded from: %s", path)
 			break
 		}
 	}
 
 	if initErr != nil {
-		logger.FatalLog("Failed to initialize config: " + initErr.Error())
+		log.Fatalf("Failed to initialize config: %v", initErr)
+	}
+
+	logDir := config.LogDir
+	if logDir == "" {
+		logDir = "./logs"
+	}
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	logger.Init(logDir, logLevel, false)
+	logger.SysLogf("PDF Parser started, version: %s", common.Version)
+
+	if config.DebugEnabled {
+		logger.SysLog("running in debug mode")
 	}
 
 	model.InitDB()
-	logger.SysLog("Database initialized")
+	logger.Info("Database initialized")
 
 	err := common.InitRedisClient()
 	if err != nil {
-		logger.FatalLog("Failed to initialize Redis: " + err.Error())
+		logger.Fatal("Failed to initialize Redis: " + err.Error())
 	}
 
 	common.RateLimiter.Init(60)
@@ -77,7 +84,10 @@ func main() {
 	})
 
 	server := gin.New()
-	server.Use(gin.Recovery())
+	server.Use(middleware.Recovery())
+	server.Use(middleware.RequestId())
+	server.Use(middleware.CORS())
+	middleware.SetUpLogger(server)
 
 	router.SetRouter(server)
 
@@ -90,12 +100,13 @@ func main() {
 		}
 	}
 
-	logger.SysLogf("Server started on http://0.0.0.0:%s", port)
-	logger.SysLog("API文档: http://localhost:" + port + "/api/v1")
-	logger.SysLog("前端页面: http://localhost:" + port)
+	logger.SysLogf("Server starting on http://0.0.0.0:%s", port)
+	logger.SysLogf("API docs: http://localhost:%s/api/v1", port)
+	logger.SysLogf("Frontend: http://localhost:%s", port)
+
 	err = server.Run(":" + port)
 	if err != nil {
-		logger.FatalLog("Failed to start HTTP server: " + err.Error())
+		logger.Fatal("Failed to start HTTP server: " + err.Error())
 	}
 
 	defer func() {

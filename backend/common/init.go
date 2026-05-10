@@ -11,7 +11,7 @@ import (
 func Init() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		logger.FatalLog("failed to get home directory: " + err.Error())
+		logger.Fatal("failed to get home directory: " + err.Error())
 	}
 
 	if config.LogDir == "" {

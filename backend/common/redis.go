@@ -23,7 +23,7 @@ func InitRedisClient() (err error) {
 	redisConnString := os.Getenv("REDIS_CONN_STRING")
 	opt, err := redis.ParseURL(redisConnString)
 	if err != nil {
-		logger.FatalLog("failed to parse Redis connection string: " + err.Error())
+		logger.Fatal("failed to parse Redis connection string: " + err.Error())
 	}
 
 	logger.SysLog("Redis is enabled")
@@ -34,7 +34,7 @@ func InitRedisClient() (err error) {
 
 	_, err = RDB.Ping(ctx).Result()
 	if err != nil {
-		logger.FatalLog("Redis ping test failed: " + err.Error())
+		logger.Fatal("Redis ping test failed: " + err.Error())
 	}
 
 	return nil
@@ -75,7 +75,7 @@ func RedisDecrease(key string, value int64) error {
 func ParseRedisOption() *redis.Options {
 	opt, err := redis.ParseURL(os.Getenv("REDIS_CONN_STRING"))
 	if err != nil {
-		logger.FatalLog("failed to parse Redis connection string: " + err.Error())
+		logger.Fatal("failed to parse Redis connection string: " + err.Error())
 	}
 	return opt
 }
