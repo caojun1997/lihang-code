@@ -1,96 +1,137 @@
 <template>
-  <div class="space-y-3">
-    <label class="text-sm font-medium text-foreground">输出格式</label>
-    <div class="grid grid-cols-3 gap-3">
-      <button
-        v-for="option in formatOptions"
-        :key="option.value"
-        type="button"
-        :class="[
-          'relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200',
-          modelValue === option.value
-            ? 'border-primary bg-primary/5 shadow-sm'
-            : 'border-border hover:border-primary/30 hover:bg-muted/50',
-        ]"
-        @click="emit('update:modelValue', option.value)"
-      >
-        <component :is="option.icon" class="w-6 h-6" :class="modelValue === option.value ? 'text-primary' : 'text-muted-foreground'" />
-        <span class="text-sm font-medium" :class="modelValue === option.value ? 'text-primary' : 'text-foreground'">
-          {{ option.label }}
-        </span>
-        <span class="text-xs text-muted-foreground">{{ option.description }}</span>
-
-        <div
-          v-if="modelValue === option.value"
-          class="absolute -top-2 -right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+  <div class="space-y-4">
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-foreground">输出格式</label>
+      <div class="grid grid-cols-3 gap-3">
+        <button
+          v-for="option in formatOptions"
+          :key="option.value"
+          :class="[
+            'relative p-4 rounded-xl border-2 transition-all duration-200 text-center',
+            'hover:border-primary/50 hover:bg-muted/30',
+            modelValue === option.value
+              ? 'border-primary bg-primary/5 shadow-sm'
+              : 'border-border bg-card'
+          ]"
+          @click="emit('update:modelValue', option.value)"
         >
-          <Check class="w-3 h-3 text-primary-foreground" />
-        </div>
-      </button>
+          <component :is="option.icon" class="w-6 h-6 mx-auto mb-2" />
+          <p class="text-sm font-medium text-foreground">{{ option.label }}</p>
+          <p class="text-xs text-muted-foreground mt-0.5">{{ option.description }}</p>
+          <div
+            v-if="modelValue === option.value"
+            class="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+          >
+            <Check class="w-3 h-3 text-white" />
+          </div>
+        </button>
+      </div>
     </div>
 
-    <div class="flex flex-wrap gap-2 mt-4">
-      <span class="text-xs text-muted-foreground">高级选项：</span>
-      <label
-        v-for="opt in advancedOptions"
-        :key="opt.key"
-        class="flex items-center gap-1.5 text-xs cursor-pointer"
+    <div class="space-y-3">
+      <label class="text-sm font-medium text-foreground">解析选项</label>
+      <div class="grid grid-cols-2 gap-3">
+        <label
+          v-for="option in optionItems"
+          :key="option.key"
+          class="flex items-center gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer hover:bg-muted/30 transition-colors"
+        >
+          <input
+            type="checkbox"
+            :checked="options[option.key]"
+            class="w-4 h-4 rounded border-input text-primary focus:ring-primary"
+            @change="toggleOption(option.key)"
+          />
+          <div class="flex-1">
+            <p class="text-sm font-medium text-foreground">{{ option.label }}</p>
+            <p class="text-xs text-muted-foreground">{{ option.description }}</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-foreground">语言设置</label>
+      <select
+        v-model="options.language"
+        class="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
       >
-        <input
-          type="checkbox"
-          v-model="advancedState[opt.key]"
-          class="rounded border-input text-primary focus:ring-primary"
-        />
-        <span class="text-muted-foreground hover:text-foreground transition-colors">{{ opt.label }}</span>
-      </label>
+        <option value="auto">自动检测</option>
+        <option value="zh">中文</option>
+        <option value="en">英文</option>
+        <option value="ja">日文</option>
+        <option value="ko">韩文</option>
+      </select>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { FileText, Database, Check } from 'lucide-vue-next'
+import { FileText, Code, Check } from 'lucide-vue-next'
 
 const props = defineProps<{
   modelValue: 'markdown' | 'txt' | 'json'
+  options: {
+    preserve_tables: boolean
+    extract_images: boolean
+    latex_formulas: boolean
+    preserve_headings: boolean
+    language: string
+  }
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: 'markdown' | 'txt' | 'json'): void
+  (e: 'update:options', value: typeof props.options): void
 }>()
 
 const formatOptions = [
   {
     value: 'markdown' as const,
     label: 'Markdown',
-    description: '结构化文本',
-    icon: FileText,
+    description: '保留格式结构',
+    icon: FileText
   },
   {
     value: 'txt' as const,
     label: '纯文本',
-    description: '无格式',
-    icon: FileText,
+    description: '仅提取文本',
+    icon: Code
   },
   {
     value: 'json' as const,
     label: 'JSON',
-    description: '结构化数据',
-    icon: Database,
+    description: '含元数据',
+    icon: FileText
+  }
+]
+
+const optionItems = [
+  {
+    key: 'preserve_tables' as const,
+    label: '保留表格结构',
+    description: '表格转为Markdown格式'
   },
+  {
+    key: 'extract_images' as const,
+    label: '提取图片',
+    description: '保留图片引用'
+  },
+  {
+    key: 'latex_formulas' as const,
+    label: '识别公式',
+    description: '转为LaTeX格式'
+  },
+  {
+    key: 'preserve_headings' as const,
+    label: '保留目录层级',
+    description: '识别标题结构'
+  }
 ]
 
-const advancedOptions = [
-  { key: 'tables' as const, label: '保留表格结构' },
-  { key: 'formulas' as const, label: '保留公式' },
-  { key: 'images' as const, label: '提取图片' },
-]
-
-const advancedState = reactive({
-  tables: true,
-  formulas: true,
-  images: true,
-})
-
-void props
+function toggleOption(key: keyof typeof props.options) {
+  if (key === 'language') return
+  const newOptions = { ...props.options, [key]: !props.options[key] }
+  emit('update:options', newOptions)
+}
 </script>

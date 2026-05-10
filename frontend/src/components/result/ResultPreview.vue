@@ -1,21 +1,21 @@
 <template>
-  <div class="h-full flex flex-col bg-card rounded-2xl border border-border overflow-hidden">
-    <div class="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+  <div class="h-full flex flex-col bg-card rounded-xl border border-border overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
       <div class="flex items-center gap-3">
         <FileText class="w-5 h-5 text-primary" />
         <div>
-          <h3 class="font-semibold text-foreground">{{ fileName }}</h3>
-          <p class="text-xs text-muted-foreground">{{ wordCount }} 字 · {{ format }}</p>
+          <h3 class="font-semibold text-foreground text-sm">{{ fileName || '预览' }}</h3>
+          <p class="text-xs text-muted-foreground">{{ wordCount }} 字 · {{ format?.toUpperCase() }}</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <div class="flex bg-muted rounded-lg p-1">
+        <div class="flex bg-muted rounded-lg p-0.5">
           <button
             v-for="fmt in formats"
             :key="fmt"
             :class="[
-              'px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+              'px-2.5 py-1 text-xs font-medium rounded-md transition-all',
               selectedFormat === fmt
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -26,81 +26,102 @@
           </button>
         </div>
 
-        <div class="w-px h-6 bg-border mx-1" />
+        <div class="w-px h-5 bg-border mx-1" />
 
         <button
-          class="p-2 text-muted-foreground hover:text-primary transition-colors"
+          class="p-1.5 text-muted-foreground hover:text-primary transition-colors"
           title="复制全部"
-          @click="copyAll"
+          @click="copyContent"
         >
-          <Copy class="w-5 h-5" />
+          <Copy class="w-4 h-4" />
         </button>
         <button
-          class="p-2 text-muted-foreground hover:text-primary transition-colors"
+          class="p-1.5 text-muted-foreground hover:text-primary transition-colors"
           title="下载"
-          @click="downloadResult"
+          @click="downloadContent"
         >
-          <Download class="w-5 h-5" />
+          <Download class="w-4 h-4" />
         </button>
       </div>
     </div>
 
-    <div class="flex-1 overflow-auto p-6">
-      <div class="max-w-4xl mx-auto">
-        <div
-          v-if="content"
-          class="prose prose-slate dark:prose-invert max-w-none"
-          v-html="renderedContent"
-        />
-        <div v-else class="text-center text-muted-foreground py-12">
-          <FileText class="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>暂无预览内容</p>
-        </div>
+    <div class="flex-1 overflow-auto scrollbar-thin">
+      <div class="max-w-3xl mx-auto p-6">
+        <template v-if="loading">
+          <div class="space-y-4">
+            <div class="h-6 bg-muted rounded animate-shimmer w-3/4" />
+            <div class="h-4 bg-muted rounded animate-shimmer w-full" />
+            <div class="h-4 bg-muted rounded animate-shimmer w-5/6" />
+            <div class="h-4 bg-muted rounded animate-shimmer w-full" />
+            <div class="h-6 bg-muted rounded animate-shimmer w-2/3 mt-6" />
+            <div class="h-4 bg-muted rounded animate-shimmer w-full" />
+            <div class="h-4 bg-muted rounded animate-shimmer w-4/5" />
+          </div>
+        </template>
+
+        <template v-else-if="content">
+          <div
+            class="prose-custom"
+            v-html="renderedContent"
+          />
+        </template>
+
+        <template v-else>
+          <div class="text-center py-16">
+            <div class="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FileText class="w-8 h-8 text-muted-foreground/50" />
+            </div>
+            <p class="text-muted-foreground">暂无预览内容</p>
+            <p class="text-sm text-muted-foreground/70 mt-1">
+              上传文件并解析后即可预览结果
+            </p>
+          </div>
+        </template>
       </div>
     </div>
 
-    <div class="p-4 border-t border-border bg-muted/30">
+    <div class="px-4 py-3 border-t border-border bg-muted/30">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4 text-sm text-muted-foreground">
+        <div class="flex items-center gap-4 text-xs text-muted-foreground">
           <button
             :class="[
-              'flex items-center gap-1.5 hover:text-foreground transition-colors',
-              { 'text-primary': searchQuery !== '' }
+              'flex items-center gap-1.5 transition-colors',
+              { 'text-primary': showSearch }
             ]"
             @click="showSearch = !showSearch"
           >
-            <Search class="w-4 h-4" />
+            <Search class="w-3.5 h-3.5" />
             搜索
           </button>
           <span>{{ wordCount }} 字</span>
-          <span>{{ formatTime(createdAt || '') }}</span>
+          <span v-if="createdAt">{{ formatTime(createdAt) }}</span>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button
-            class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-            @click="copyAll"
-          >
-            <Copy class="w-4 h-4" />
-            复制全部
-          </button>
+        <div v-if="searchQuery" class="text-xs text-primary">
+          找到 {{ searchCount }} 处
         </div>
       </div>
 
-      <div v-if="showSearch" class="mt-3 flex items-center gap-2">
-        <div class="relative flex-1">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索内容..."
-            class="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 -translate-y-2"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 -translate-y-2"
+      >
+        <div v-if="showSearch" class="mt-3 flex items-center gap-2">
+          <div class="relative flex-1">
+            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索内容..."
+              class="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
         </div>
-        <span v-if="searchQuery" class="text-sm text-muted-foreground">
-          找到 {{ searchResults }} 处
-        </span>
-      </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -111,10 +132,11 @@ import { FileText, Copy, Download, Search } from 'lucide-vue-next'
 import { marked } from 'marked'
 
 const props = defineProps<{
-  content: string
+  content?: string
   fileName?: string
   format?: string
   createdAt?: string
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -122,90 +144,57 @@ const emit = defineEmits<{
   (e: 'download', format: string): void
 }>()
 
-const selectedFormat = ref('md')
-const formats = ['md', 'txt', 'json']
+const formats = ['md', 'txt', 'json'] as const
+const selectedFormat = ref<'md' | 'txt' | 'json'>('md')
 const showSearch = ref(false)
 const searchQuery = ref('')
 
-const wordCount = computed(() => props.content?.length || 0)
+const wordCount = computed(() => {
+  if (!props.content) return 0
+  return props.content.replace(/\s/g, '').length
+})
 
 const renderedContent = computed(() => {
   if (!props.content) return ''
   try {
-    return marked.parse(props.content) as string
+    if (selectedFormat.value === 'md') {
+      return marked.parse(props.content) as string
+    }
+    return props.content
   } catch {
     return props.content
   }
 })
 
-const searchResults = computed(() => {
-  if (!searchQuery.value) return 0
-  const regex = new RegExp(searchQuery.value, 'gi')
+const searchCount = computed(() => {
+  if (!searchQuery.value || !props.content) return 0
+  const regex = new RegExp(escapeRegExp(searchQuery.value), 'gi')
   return (props.content.match(regex) || []).length
 })
 
-function copyAll() {
-  navigator.clipboard.writeText(props.content)
-  emit('copy')
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function downloadResult() {
+function copyContent() {
+  if (props.content) {
+    navigator.clipboard.writeText(props.content)
+    emit('copy')
+  }
+}
+
+function downloadContent() {
   emit('download', selectedFormat.value)
 }
 
 function formatTime(dateString: string): string {
   if (!dateString) return ''
   const date = new Date(dateString)
-  return date.toLocaleString('zh-CN')
+  return date.toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 </script>
-
-<style>
-.prose pre {
-  @apply bg-muted rounded-lg p-4 overflow-x-auto;
-}
-
-.prose code {
-  @apply text-sm;
-}
-
-.prose pre code {
-  @apply bg-transparent;
-}
-
-.prose h1 {
-  @apply text-2xl font-bold mb-4 mt-6;
-}
-
-.prose h2 {
-  @apply text-xl font-semibold mb-3 mt-5;
-}
-
-.prose h3 {
-  @apply text-lg font-medium mb-2 mt-4;
-}
-
-.prose p {
-  @apply mb-4 leading-relaxed;
-}
-
-.prose ul, .prose ol {
-  @apply mb-4 pl-6;
-}
-
-.prose li {
-  @apply mb-1;
-}
-
-.prose table {
-  @apply w-full border-collapse mb-4;
-}
-
-.prose th, .prose td {
-  @apply border border-border px-4 py-2;
-}
-
-.prose th {
-  @apply bg-muted font-semibold;
-}
-</style>

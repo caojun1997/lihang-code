@@ -9,14 +9,14 @@
   >
     <div
       :class="[
-        'border-2 border-dashed rounded-2xl p-16 text-center transition-all duration-300 cursor-pointer relative overflow-hidden',
-        isDragOver
-          ? 'border-primary bg-primary/5 scale-[1.02]'
-          : 'border-border hover:border-primary/50 hover:bg-muted/50',
-        isUploading ? 'pointer-events-none' : '',
+        'border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 cursor-pointer',
+        'hover:border-primary/50 hover:bg-muted/30',
+        props.uploading
+          ? 'border-primary bg-primary/5 scale-[1.01]'
+          : 'border-border',
+        props.uploading ? 'pointer-events-none opacity-75' : ''
       ]"
-      :style="isDragOver ? { borderStyle: 'dashed' } : {}"
-      @click="triggerFileInput"
+      @click="!props.uploading && triggerFileInput()"
     >
       <input
         ref="fileInput"
@@ -27,23 +27,23 @@
         @change="handleFileSelect"
       />
 
-      <div class="flex flex-col items-center gap-6 animate-fade-in">
+      <div class="flex flex-col items-center gap-5">
         <div
           :class="[
-            'w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300',
-            isDragOver ? 'bg-primary scale-110 shadow-lg shadow-primary/30' : 'bg-muted',
+            'w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200',
+            isDragOver ? 'bg-primary scale-110 shadow-lg shadow-primary/25' : 'bg-muted'
           ]"
         >
           <Upload
             :class="[
-              'w-10 h-10 transition-all duration-300',
-              isDragOver ? 'text-white' : 'text-muted-foreground',
+              'w-8 h-8 transition-colors',
+              isDragOver ? 'text-white' : 'text-muted-foreground'
             ]"
           />
         </div>
 
         <div class="space-y-2">
-          <p class="text-xl font-semibold text-foreground">
+          <p class="text-lg font-semibold text-foreground">
             {{ isDragOver ? '释放文件开始上传' : '拖拽文件到此处' }}
           </p>
           <p class="text-sm text-muted-foreground">
@@ -51,33 +51,24 @@
           </p>
         </div>
 
-        <div class="flex items-center gap-4 text-xs text-muted-foreground/70">
-          <span class="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 rounded-full">
+        <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span class="px-2.5 py-1 bg-muted/60 rounded-full flex items-center gap-1.5">
             <FileText class="w-3.5 h-3.5" />
             PDF
           </span>
-          <span class="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 rounded-full">
+          <span class="px-2.5 py-1 bg-muted/60 rounded-full flex items-center gap-1.5">
             <FileText class="w-3.5 h-3.5" />
             DOCX
           </span>
-          <span class="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 rounded-full">
+          <span class="px-2.5 py-1 bg-muted/60 rounded-full flex items-center gap-1.5">
             <FileText class="w-3.5 h-3.5" />
             PPTX
           </span>
-          <span class="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-medium">
-            最大 50MB
+          <span class="px-2.5 py-1 bg-primary/10 text-primary rounded-full font-medium">
+            最大 {{ maxSizeMB }}MB
           </span>
         </div>
-
-        <p v-if="isDragOver" class="text-sm text-primary font-medium animate-pulse">
-          松开鼠标即可上传
-        </p>
       </div>
-
-      <div
-        v-if="isDragOver"
-        class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none"
-      />
     </div>
 
     <Transition
@@ -88,19 +79,29 @@
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 translate-y-2"
     >
-      <div v-if="selectedFiles.length > 0" class="mt-4 space-y-3">
+      <div v-if="localFiles.length > 0" class="mt-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium text-foreground">已选择 {{ localFiles.length }} 个文件</span>
+          <button
+            class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            @click="clearAll"
+          >
+            清空全部
+          </button>
+        </div>
+
         <div
-          v-for="(file, index) in selectedFiles"
+          v-for="(file, index) in localFiles"
           :key="index"
-          class="bg-card border rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow"
+          class="bg-card border rounded-lg p-3 flex items-center gap-3 hover:shadow-sm transition-shadow"
         >
           <div
             :class="[
-              'w-12 h-12 rounded-xl flex items-center justify-center',
-              getFileColor(file.name),
+              'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+              getFileColor(file.name)
             ]"
           >
-            <FileText class="w-6 h-6 text-white" />
+            <FileText class="w-4 h-4 text-white" />
           </div>
 
           <div class="flex-1 min-w-0">
@@ -108,22 +109,21 @@
             <p class="text-xs text-muted-foreground">{{ formatFileSize(file.size) }}</p>
           </div>
 
-          <div v-if="uploadProgress[index] !== undefined" class="w-24">
-            <div class="h-2 bg-muted rounded-full overflow-hidden">
+          <div v-if="uploadProgress[index] !== undefined" class="w-20">
+            <div class="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                class="h-full bg-primary rounded-full transition-all duration-300"
+                class="h-full bg-primary rounded-full transition-all duration-200"
                 :style="{ width: `${uploadProgress[index]}%` }"
               />
             </div>
-            <p class="text-xs text-muted-foreground text-center mt-1">{{ uploadProgress[index] }}%</p>
           </div>
 
           <button
             type="button"
-            class="p-2 text-muted-foreground hover:text-destructive transition-colors"
-            @click.stop="removeFile(index)"
+            class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+            @click="removeFile(index)"
           >
-            <X class="w-5 h-5" />
+            <X class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -134,13 +134,10 @@
       enter-from-class="opacity-0"
       enter-to-class="opacity-100"
     >
-      <div v-if="error" class="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
-        <div class="flex items-start gap-3">
-          <AlertCircle class="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div>
-            <p class="text-sm font-medium text-destructive">上传失败</p>
-            <p class="text-xs text-destructive/80 mt-1">{{ error }}</p>
-          </div>
+      <div v-if="error" class="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <div class="flex items-start gap-2">
+          <AlertCircle class="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+          <p class="text-sm text-destructive">{{ error }}</p>
         </div>
       </div>
     </Transition>
@@ -148,30 +145,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { Upload, FileText, X, AlertCircle } from 'lucide-vue-next'
-import { formatFileSize } from '@/lib/utils'
+
+const props = withDefaults(defineProps<{
+  modelValue?: File[]
+  maxSizeMB?: number
+  uploading?: boolean
+}>(), {
+  maxSizeMB: 100,
+  uploading: false
+})
 
 const emit = defineEmits<{
+  (e: 'update:modelValue', files: File[]): void
   (e: 'files-selected', files: File[]): void
   (e: 'error', message: string): void
-  (e: 'upload-progress', index: number, progress: number): void
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const selectedFiles = ref<File[]>([])
+const localFiles = ref<File[]>([])
 const uploadProgress = ref<Record<number, number>>({})
 const isDragOver = ref(false)
-const isUploading = ref(false)
 const error = ref('')
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx']
 
-function triggerFileInput() {
-  if (!isUploading.value) {
-    fileInput.value?.click()
+watch(() => props.modelValue, (newFiles) => {
+  if (newFiles) {
+    localFiles.value = [...newFiles]
   }
+}, { immediate: true })
+
+function triggerFileInput() {
+  fileInput.value?.click()
 }
 
 function handleDragEnter(_e: DragEvent) {
@@ -224,6 +231,7 @@ function handlePaste(e: ClipboardEvent) {
 
 function handleFiles(files: File[]) {
   error.value = ''
+  const validFiles: File[] = []
 
   for (const file of files) {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase()
@@ -231,28 +239,43 @@ function handleFiles(files: File[]) {
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       error.value = `不支持 ${ext} 格式，请上传 PDF、DOC、DOCX、PPT 或 PPTX 文件`
       emit('error', error.value)
-      return
+      continue
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      error.value = `${file.name} 超过 50MB 限制`
+    if (file.size > props.maxSizeMB * 1024 * 1024) {
+      error.value = `${file.name} 超过 ${props.maxSizeMB}MB 限制`
       emit('error', error.value)
-      return
+      continue
     }
 
-    const existsIndex = selectedFiles.value.findIndex(f => f.name === file.name)
+    const existsIndex = localFiles.value.findIndex(f => f.name === file.name)
     if (existsIndex === -1) {
-      selectedFiles.value.push(file)
+      localFiles.value.push(file)
+      validFiles.push(file)
     }
   }
 
-  emit('files-selected', selectedFiles.value)
+  if (validFiles.length > 0) {
+    emit('update:modelValue', localFiles.value)
+    emit('files-selected', localFiles.value)
+  }
 }
 
 function removeFile(index: number) {
-  selectedFiles.value.splice(index, 1)
+  localFiles.value.splice(index, 1)
   delete uploadProgress.value[index]
-  emit('files-selected', selectedFiles.value)
+  emit('update:modelValue', localFiles.value)
+  emit('files-selected', localFiles.value)
+}
+
+function clearAll() {
+  localFiles.value = []
+  uploadProgress.value = {}
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+  emit('update:modelValue', [])
+  emit('files-selected', [])
 }
 
 function getFileColor(filename: string): string {
@@ -271,26 +294,18 @@ function getFileColor(filename: string): string {
   }
 }
 
-function setUploading(value: boolean) {
-  isUploading.value = value
-}
-
-function updateProgress(index: number, progress: number) {
-  uploadProgress.value[index] = progress
-  emit('upload-progress', index, progress)
-}
-
-function clearFiles() {
-  selectedFiles.value = []
-  uploadProgress.value = {}
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 defineExpose({
-  setUploading,
-  updateProgress,
-  clearFiles,
+  updateProgress: (index: number, progress: number) => {
+    uploadProgress.value[index] = progress
+  },
+  clearFiles: clearAll
 })
 </script>
