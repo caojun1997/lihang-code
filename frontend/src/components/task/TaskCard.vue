@@ -1,92 +1,193 @@
 <template>
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="p-6">
-      <div class="flex items-start justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-            <FileText class="w-6 h-6 text-red-500" />
+  <div
+    :class="[
+      'bg-card border rounded-2xl p-5 transition-all duration-300 cursor-pointer group',
+      isActive
+        ? 'border-primary shadow-lg shadow-primary/10 ring-2 ring-primary/20'
+        : 'border-border hover:border-primary/30 hover:shadow-md',
+    ]"
+    @click="emit('click')"
+  >
+    <div class="flex items-start gap-4">
+      <div
+        :class="[
+          'w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300',
+          statusConfig.bgColor,
+          isActive ? 'scale-105' : 'group-hover:scale-105',
+        ]"
+      >
+        <component :is="statusConfig.icon" class="w-7 h-7 text-white" />
+      </div>
+
+      <div class="flex-1 min-w-0 space-y-2">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+              {{ task.file_name }}
+            </h3>
+            <p class="text-sm text-muted-foreground">
+              {{ formatFileSize(task.file_size) }}
+            </p>
           </div>
-          <div>
-            <h3 class="font-medium text-gray-900">{{ task.file_name }}</h3>
-            <p class="text-sm text-gray-500">{{ formatDate(task.created_at) }}</p>
+          <StatusBadge :status="task.status" class="flex-shrink-0" />
+        </div>
+
+        <div v-if="isProcessing" class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{{ statusConfig.label }}</span>
+            <span>{{ task.progress || 0 }}%</span>
+          </div>
+          <div class="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              :class="['h-full rounded-full transition-all duration-500', statusConfig.progressColor]"
+              :style="{ width: `${task.progress || 0}%` }"
+            />
+          </div>
+          <p v-if="task.current_page && task.total_pages" class="text-xs text-muted-foreground">
+            正在处理第 {{ task.current_page }} / {{ task.total_pages }} 页
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-border/50">
+          <span class="text-xs text-muted-foreground">
+            {{ formatTime(task.created_at) }}
+          </span>
+          <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              v-if="task.status === 'completed'"
+              class="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+              title="查看结果"
+              @click.stop="emit('view')"
+            >
+              <Eye class="w-4 h-4" />
+            </button>
+            <button
+              v-if="task.status === 'completed'"
+              class="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+              title="下载"
+              @click.stop="emit('download')"
+            >
+              <Download class="w-4 h-4" />
+            </button>
+            <button
+              v-if="task.status === 'completed'"
+              class="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+              title="复制"
+              @click.stop="emit('copy')"
+            >
+              <Copy class="w-4 h-4" />
+            </button>
+            <button
+              class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+              title="删除"
+              @click.stop="emit('delete')"
+            >
+              <Trash2 class="w-4 h-4" />
+            </button>
           </div>
         </div>
-        <TaskStatus :status="task.status" />
-      </div>
-
-      <div class="flex items-center gap-6 text-sm text-gray-500 mb-4">
-        <div class="flex items-center gap-1">
-          <HardDrive class="w-4 h-4" />
-          <span>{{ formatFileSize(task.file_size) }}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <Tag class="w-4 h-4" />
-          <span>{{ task.output_format === 'markdown' ? 'Markdown' : '纯文本' }}</span>
-        </div>
-      </div>
-
-      <div v-if="task.status === 'processing'" class="mb-4">
-        <div class="flex items-center justify-between text-sm mb-2">
-          <span class="text-gray-500">处理进度</span>
-          <span class="font-medium text-blue-600">{{ progress }}%</span>
-        </div>
-        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            class="h-full bg-blue-500 rounded-full transition-all duration-300"
-            :style="{ width: `${progress}%` }"
-          />
-        </div>
-      </div>
-
-      <div v-if="task.error_message" class="mb-4 p-3 bg-red-50 rounded-lg">
-        <p class="text-sm text-red-600">{{ task.error_message }}</p>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <button
-          v-if="task.status === 'completed'"
-          type="button"
-          class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          @click="emit('view')"
-        >
-          查看结果
-        </button>
-        <button
-          v-if="task.status === 'completed'"
-          type="button"
-          class="flex items-center gap-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-          @click="emit('download')"
-        >
-          <Download class="w-4 h-4" />
-          下载
-        </button>
-        <button
-          type="button"
-          class="flex items-center gap-1 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-          @click="emit('delete')"
-        >
-          <Trash2 class="w-4 h-4" />
-          删除
-        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { FileText, HardDrive, Tag, Download, Trash2 } from 'lucide-vue-next'
-import { formatFileSize, formatDate } from '@/lib/utils'
-import type { Task } from '@/api/types'
-import TaskStatus from './TaskStatus.vue'
+import { computed } from 'vue'
+import { 
+  Clock, 
+  Upload, 
+  Loader2, 
+  CheckCircle2, 
+  AlertTriangle, 
+  XCircle, 
+  Ban,
+  Eye,
+  Download,
+  Copy,
+  Trash2
+} from 'lucide-vue-next'
+import type { Task, TaskStatus } from '@/api/types'
+import StatusBadge from './StatusBadge.vue'
+import { formatFileSize } from '@/lib/utils'
 
 const props = defineProps<{
   task: Task
-  progress?: number
+  isActive?: boolean
 }>()
 
 const emit = defineEmits<{
+  (e: 'click'): void
   (e: 'view'): void
   (e: 'download'): void
+  (e: 'copy'): void
   (e: 'delete'): void
 }>()
+
+const statusConfig = computed(() => {
+  const configs: Record<TaskStatus, {
+    icon: any
+    label: string
+    bgColor: string
+    progressColor: string
+  }> = {
+    pending: {
+      icon: Clock,
+      label: '等待中',
+      bgColor: 'bg-gray-500',
+      progressColor: 'bg-gray-500',
+    },
+    uploading: {
+      icon: Upload,
+      label: '上传中',
+      bgColor: 'bg-blue-500',
+      progressColor: 'bg-blue-500',
+    },
+    processing: {
+      icon: Loader2,
+      label: '解析中',
+      bgColor: 'bg-blue-500 animate-pulse',
+      progressColor: 'bg-gradient-to-r from-blue-500 to-primary',
+    },
+    completed: {
+      icon: CheckCircle2,
+      label: '已完成',
+      bgColor: 'bg-green-500',
+      progressColor: 'bg-green-500',
+    },
+    partial_failed: {
+      icon: AlertTriangle,
+      label: '部分失败',
+      bgColor: 'bg-orange-500',
+      progressColor: 'bg-orange-500',
+    },
+    failed: {
+      icon: XCircle,
+      label: '失败',
+      bgColor: 'bg-red-500',
+      progressColor: 'bg-red-500',
+    },
+    cancelled: {
+      icon: Ban,
+      label: '已取消',
+      bgColor: 'bg-gray-400',
+      progressColor: 'bg-gray-400',
+    },
+  }
+  return configs[props.task.status] || configs.pending
+})
+
+const isProcessing = computed(() => 
+  ['pending', 'uploading', 'processing'].includes(props.task.status)
+)
+
+function formatTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+  return date.toLocaleDateString('zh-CN')
+}
 </script>

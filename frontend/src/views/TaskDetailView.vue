@@ -28,7 +28,7 @@
                 </p>
               </div>
             </div>
-            <TaskStatus :status="task.status" />
+            <StatusBadge :status="task.status" />
           </div>
 
           <div class="grid grid-cols-4 gap-6 mb-6">
@@ -55,18 +55,18 @@
           <div v-if="task.status === 'processing'" class="mb-6">
             <div class="flex items-center justify-between text-sm mb-2">
               <span class="text-gray-500">处理进度</span>
-              <span class="font-medium text-blue-600">{{ progress }}%</span>
+              <span class="font-medium text-blue-600">{{ task.progress || 0 }}%</span>
             </div>
             <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
               <div
                 class="h-full bg-blue-500 rounded-full transition-all duration-500"
-                :style="{ width: `${progress}%` }"
+                :style="{ width: `${task.progress || 0}%` }"
               />
             </div>
           </div>
 
-          <div v-if="task.error_message" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p class="text-sm text-red-600">错误信息: {{ task.error_message }}</p>
+          <div v-if="task.error_msg" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">错误信息: {{ task.error_msg }}</p>
           </div>
 
           <div class="flex items-center gap-4">
@@ -81,7 +81,7 @@
             </button>
             <button
               type="button"
-              class="text-red-600 px-6 py-3 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2"
+              class="text-red-600 px-6 py-3 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
               @click="handleDelete"
             >
               <Trash2 class="w-5 h-5" />
@@ -106,8 +106,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, FileText, Download, Trash2, Loader2 } from 'lucide-vue-next'
 import { useTaskStore } from '@/stores/task'
 import { formatFileSize, formatDate } from '@/lib/utils'
-import TaskStatus from '@/components/task/TaskStatus.vue'
+import StatusBadge from '@/components/task/StatusBadge.vue'
 import ResultViewer from '@/components/result/ResultViewer.vue'
+import type { TaskStatus } from '@/api/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,13 +116,15 @@ const taskStore = useTaskStore()
 
 const task = ref(taskStore.currentTask)
 const loading = ref(true)
-const progress = ref(0)
 
-const statusText: Record<string, string> = {
+const statusText: Record<TaskStatus, string> = {
   pending: '等待中',
+  uploading: '上传中',
   processing: '处理中',
   completed: '已完成',
+  partial_failed: '部分失败',
   failed: '失败',
+  cancelled: '已取消',
 }
 
 let pollInterval: number | null = null
@@ -145,14 +148,14 @@ function startPolling() {
     if (!task.value) return
 
     try {
-      const status = await taskStore.fetchTaskStatus(task.value.task_id)
-      progress.value = status.progress
-
-      if (task.value && status.status) {
-        task.value.status = status.status
+      const statusResp = await taskStore.fetchTask(task.value.task_id)
+      
+      if (task.value && statusResp) {
+        task.value.status = statusResp.status
+        task.value.progress = statusResp.progress
       }
 
-      if (status.status === 'completed' || status.status === 'failed') {
+      if (statusResp?.status === 'completed' || statusResp?.status === 'failed') {
         stopPolling()
       }
     } catch (e) {
@@ -172,16 +175,7 @@ async function handleDownload() {
   if (!task.value) return
 
   try {
-    const blob = await fetch(`/api/v1/tasks/${task.value.task_id}/download`).then((r) => r.blob())
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = task.value.file_name.replace(
-      '.pdf',
-      task.value.output_format === 'markdown' ? '_parsed.md' : '_parsed.txt'
-    )
-    a.click()
-    URL.revokeObjectURL(url)
+    await taskStore.downloadResult(task.value.task_id)
   } catch (e) {
     console.error('Download failed:', e)
   }

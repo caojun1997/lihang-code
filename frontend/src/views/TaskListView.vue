@@ -27,73 +27,78 @@
 
       <TaskList
         :tasks="tasks"
-        :loading="isLoading"
-        :total="total"
-        :page="page"
-        :page-size="pageSize"
-        @page-change="handlePageChange"
+        :current-task="currentTask"
+        @select="handleSelect"
+        @view="handleView"
+        @download="handleDownload"
+        @copy="handleCopy"
+        @delete="handleDelete"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/task'
 import TaskList from '@/components/task/TaskList.vue'
+import type { Task } from '@/api/types'
 
+const router = useRouter()
 const taskStore = useTaskStore()
 
-const tasks = ref(taskStore.tasks)
-const isLoading = ref(false)
-const total = ref(taskStore.total)
-const page = ref(1)
-const pageSize = ref(10)
+const tasks = computed(() => taskStore.tasks)
+const currentTask = computed(() => taskStore.currentTask)
 const statusFilter = ref('')
 
-let pollInterval: number | null = null
-
 async function loadTasks() {
-  isLoading.value = true
   await taskStore.fetchTasks({
-    page: page.value,
-    page_size: pageSize.value,
-    status: statusFilter.value,
+    page: 1,
+    page_size: 50,
+    status: statusFilter.value || undefined,
   })
-  tasks.value = taskStore.tasks
-  total.value = taskStore.total
-  isLoading.value = false
 }
 
-function handlePageChange(newPage: number) {
-  page.value = newPage
-  loadTasks()
+function handleSelect(task: Task) {
+  taskStore.currentTask = task
+}
+
+function handleView(task: Task) {
+  router.push(`/tasks/${task.task_id}`)
+}
+
+async function handleDownload(task: Task) {
+  try {
+    await taskStore.downloadResult(task.task_id)
+  } catch (error) {
+    console.error('Download failed:', error)
+  }
+}
+
+async function handleCopy(task: Task) {
+  try {
+    const result = await taskStore.fetchTaskResult(task.task_id)
+    if (result) {
+      navigator.clipboard.writeText(result.content)
+    }
+  } catch (error) {
+    console.error('Copy failed:', error)
+  }
+}
+
+async function handleDelete(task: Task) {
+  if (confirm('确定要删除这个任务吗？')) {
+    await taskStore.deleteTask(task.task_id)
+  }
 }
 
 function handleFilterChange() {
-  page.value = 1
+  taskStore.setStatusFilter(statusFilter.value as any)
   loadTasks()
-}
-
-function startPolling() {
-  pollInterval = window.setInterval(() => {
-    const processingTasks = tasks.value.filter((t) => t.status === 'processing')
-    if (processingTasks.length > 0) {
-      processingTasks.forEach((task) => {
-        taskStore.fetchTaskStatus(task.task_id)
-      })
-    }
-  }, 5000)
 }
 
 onMounted(() => {
   loadTasks()
-  startPolling()
-})
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-  }
 })
 </script>

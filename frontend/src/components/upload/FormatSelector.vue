@@ -1,70 +1,96 @@
 <template>
-  <div class="space-y-2">
-    <label class="text-sm font-medium text-gray-700">输出格式</label>
-    <div class="grid grid-cols-2 gap-3">
+  <div class="space-y-3">
+    <label class="text-sm font-medium text-foreground">输出格式</label>
+    <div class="grid grid-cols-3 gap-3">
       <button
-        v-for="option in options"
+        v-for="option in formatOptions"
         :key="option.value"
         type="button"
         :class="[
-          'relative rounded-lg border p-4 transition-all hover:border-blue-300',
+          'relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200',
           modelValue === option.value
-            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-            : 'border-gray-200 bg-white',
+            ? 'border-primary bg-primary/5 shadow-sm'
+            : 'border-border hover:border-primary/30 hover:bg-muted/50',
         ]"
         @click="emit('update:modelValue', option.value)"
       >
-        <component
-          :is="option.icon"
-          :class="[
-            'w-5 h-5 mb-2',
-            modelValue === option.value ? 'text-blue-500' : 'text-gray-400',
-          ]"
-        />
-        <p
-          :class="[
-            'text-sm font-medium',
-            modelValue === option.value ? 'text-blue-700' : 'text-gray-700',
-          ]"
-        >
+        <component :is="option.icon" class="w-6 h-6" :class="modelValue === option.value ? 'text-primary' : 'text-muted-foreground'" />
+        <span class="text-sm font-medium" :class="modelValue === option.value ? 'text-primary' : 'text-foreground'">
           {{ option.label }}
-        </p>
-        <p class="text-xs text-gray-500 mt-1">{{ option.description }}</p>
+        </span>
+        <span class="text-xs text-muted-foreground">{{ option.description }}</span>
+
+        <div
+          v-if="modelValue === option.value"
+          class="absolute -top-2 -right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+        >
+          <Check class="w-3 h-3 text-primary-foreground" />
+        </div>
       </button>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mt-4">
+      <span class="text-xs text-muted-foreground">高级选项：</span>
+      <label
+        v-for="opt in advancedOptions"
+        :key="opt.key"
+        class="flex items-center gap-1.5 text-xs cursor-pointer"
+      >
+        <input
+          type="checkbox"
+          v-model="advancedState[opt.key]"
+          class="rounded border-input text-primary focus:ring-primary"
+        />
+        <span class="text-muted-foreground hover:text-foreground transition-colors">{{ opt.label }}</span>
+      </label>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { FileCode, FileText } from 'lucide-vue-next'
+import { reactive } from 'vue'
+import { FileText, Database, Check } from 'lucide-vue-next'
 
-interface FormatOption {
-  value: 'markdown' | 'txt'
-  label: string
-  description: string
-  icon: any
-}
-
-defineProps<{
-  modelValue: 'markdown' | 'txt'
+const props = defineProps<{
+  modelValue: 'markdown' | 'txt' | 'json'
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: 'markdown' | 'txt'): void
+  (e: 'update:modelValue', value: 'markdown' | 'txt' | 'json'): void
 }>()
 
-const options: FormatOption[] = [
+const formatOptions = [
   {
-    value: 'markdown',
+    value: 'markdown' as const,
     label: 'Markdown',
-    description: '保留文档结构和格式',
-    icon: FileCode,
-  },
-  {
-    value: 'txt',
-    label: '纯文本',
-    description: '去除格式，纯文本内容',
+    description: '结构化文本',
     icon: FileText,
   },
+  {
+    value: 'txt' as const,
+    label: '纯文本',
+    description: '无格式',
+    icon: FileText,
+  },
+  {
+    value: 'json' as const,
+    label: 'JSON',
+    description: '结构化数据',
+    icon: Database,
+  },
 ]
+
+const advancedOptions = [
+  { key: 'tables' as const, label: '保留表格结构' },
+  { key: 'formulas' as const, label: '保留公式' },
+  { key: 'images' as const, label: '提取图片' },
+]
+
+const advancedState = reactive({
+  tables: true,
+  formulas: true,
+  images: true,
+})
+
+void props
 </script>

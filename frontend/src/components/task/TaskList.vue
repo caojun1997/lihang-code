@@ -1,129 +1,97 @@
 <template>
   <div class="space-y-4">
-    <div v-if="loading" class="flex items-center justify-center py-12">
-      <Loader2 class="w-8 h-8 animate-spin text-blue-500" />
-    </div>
-
-    <div v-else-if="tasks.length === 0" class="text-center py-12">
-      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <FileText class="w-8 h-8 text-gray-400" />
-      </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">暂无任务</h3>
-      <p class="text-sm text-gray-500">上传一个PDF文件开始解析</p>
-    </div>
-
-    <div v-else class="space-y-4">
-      <TaskCard
-        v-for="task in tasks"
-        :key="task.task_id"
-        :task="task"
-        :progress="progressMap[task.task_id]"
-        @view="handleView(task)"
-        @download="handleDownload(task)"
-        @delete="handleDelete(task)"
-      />
-    </div>
-
-    <div v-if="total > 0" class="flex items-center justify-between pt-4">
-      <p class="text-sm text-gray-500">
-        共 {{ total }} 条任务
-      </p>
+    <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <button
-          :disabled="page <= 1"
-          class="px-3 py-1 rounded-lg text-sm border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="handlePageChange(page - 1)"
-        >
-          上一页
-        </button>
-        <span class="text-sm text-gray-600">
-          第 {{ page }} / {{ Math.ceil(total / pageSize) }} 页
-        </span>
-        <button
-          :disabled="page >= Math.ceil(total / pageSize)"
-          class="px-3 py-1 rounded-lg text-sm border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="handlePageChange(page + 1)"
-        >
-          下一页
-        </button>
+        <div class="w-1 h-6 bg-primary rounded-full" />
+        <h2 class="text-lg font-semibold text-foreground">任务列表</h2>
+      </div>
+      <span class="text-sm text-muted-foreground">{{ tasks.length }} 个任务</span>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button
+        v-for="status in statusOptions"
+        :key="status.value"
+        :class="[
+          'px-3 py-1.5 text-sm rounded-lg transition-colors',
+          selectedStatus === status.value
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+        ]"
+        @click="selectedStatus = status.value"
+      >
+        {{ status.label }}
+        <span v-if="status.count > 0" class="ml-1">({{ status.count }})</span>
+      </button>
+    </div>
+
+    <div class="space-y-3">
+      <TransitionGroup
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="opacity-0 -translate-x-4"
+        enter-to-class="opacity-100 translate-x-0"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100 translate-x-0"
+        leave-to-class="opacity-0 translate-x-4"
+      >
+        <TaskCard
+          v-for="task in filteredTasks"
+          :key="task.task_id"
+          :task="task"
+          :is-active="currentTask?.task_id === task.task_id"
+          @click="emit('select', task)"
+          @view="emit('view', task)"
+          @download="emit('download', task)"
+          @copy="emit('copy', task)"
+          @delete="emit('delete', task)"
+        />
+      </TransitionGroup>
+
+      <div v-if="filteredTasks.length === 0" class="text-center py-12">
+        <div class="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <FileText class="w-8 h-8 text-muted-foreground" />
+        </div>
+        <p class="text-sm text-muted-foreground">暂无{{ selectedStatus === 'all' ? '' : selectedStatus }}任务</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { FileText, Loader2 } from 'lucide-vue-next'
-import { useTaskStore } from '@/stores/task'
+import { ref, computed } from 'vue'
+import { FileText } from 'lucide-vue-next'
 import TaskCard from './TaskCard.vue'
-import type { Task } from '@/api/types'
+import type { Task, TaskStatus } from '@/api/types'
 
-defineProps<{
+const props = defineProps<{
   tasks: Task[]
-  loading: boolean
-  total: number
-  page: number
-  pageSize: number
+  currentTask?: Task | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'page-change', page: number): void
+  (e: 'select', task: Task): void
+  (e: 'view', task: Task): void
+  (e: 'download', task: Task): void
+  (e: 'copy', task: Task): void
+  (e: 'delete', task: Task): void
 }>()
 
-const router = useRouter()
-const taskStore = useTaskStore()
-const progressMap = ref<Record<string, number>>({})
-let pollInterval: number | null = null
+const selectedStatus = ref<TaskStatus | 'all'>('all')
 
-async function pollTaskStatus(taskId: string) {
-  try {
-    const status = await taskStore.fetchTaskStatus(taskId)
-    progressMap.value[taskId] = status.progress
+const statusOptions = computed(() => {
+  const statuses: { value: TaskStatus | 'all'; label: string; count: number }[] = [
+    { value: 'all', label: '全部', count: props.tasks.length },
+    { value: 'processing', label: '处理中', count: props.tasks.filter(t => t.status === 'processing').length },
+    { value: 'completed', label: '已完成', count: props.tasks.filter(t => t.status === 'completed').length },
+    { value: 'failed', label: '失败', count: props.tasks.filter(t => t.status === 'failed').length },
+  ]
+  return statuses
+})
 
-    if (status.status === 'completed' || status.status === 'failed') {
-      if (pollInterval) {
-        clearInterval(pollInterval)
-        pollInterval = null
-      }
-    }
-  } catch (e) {
-    console.error('Failed to poll task status:', e)
+const filteredTasks = computed(() => {
+  if (selectedStatus.value === 'all') {
+    return props.tasks
   }
-}
-
-function handleView(task: Task) {
-  router.push(`/tasks/${task.task_id}`)
-}
-
-async function handleDownload(task: Task) {
-  try {
-    const blob = await fetch(`/api/v1/tasks/${task.task_id}/download`).then((r) => r.blob())
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = task.file_name.replace('.pdf', task.output_format === 'markdown' ? '_parsed.md' : '_parsed.txt')
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {
-    console.error('Download failed:', e)
-  }
-}
-
-async function handleDelete(task: Task) {
-  if (confirm('确定要删除这个任务吗？')) {
-    await taskStore.deleteTask(task.task_id)
-    emit('page-change', 1)
-  }
-}
-
-function handlePageChange(page: number) {
-  emit('page-change', page)
-}
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-  }
+  return props.tasks.filter(t => t.status === selectedStatus.value)
 })
 </script>
