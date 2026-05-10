@@ -1,8 +1,7 @@
-app:
-  name: "pdf-parser"
-  host: "0.0.0.0"
+server:
   port: 8080
   mode: "debug"
+  host: "0.0.0.0"
 
 database:
   host: "localhost"
@@ -19,7 +18,7 @@ redis:
   password: ""
   db: 0
 
-mineru:
+minoru:
   mode: "flash"
   base_url: "https://api.302.ai"
   api_key: ""
@@ -28,13 +27,6 @@ mineru:
 upload:
   max_size: 10485760
   storage_path: "./uploads"
-
-result:
-  storage_path: "./results"
-  cleanup_days: 7
-
-ratelimit:
-  requests_per_minute: 60
 
 oauth:
   client_id: "your-client-id"
