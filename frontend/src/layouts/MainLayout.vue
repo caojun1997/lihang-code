@@ -2,14 +2,33 @@
   <div class="min-h-screen flex flex-col bg-background">
     <header class="sticky top-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div class="container h-full flex items-center justify-between px-4 md:px-6">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
-            <FileText class="w-6 h-6 text-white" />
-          </div>
-          <div class="hidden sm:block">
-            <h1 class="text-lg font-bold text-foreground">PDF解析助手</h1>
-            <p class="text-xs text-muted-foreground">智能识别 · 高效转换</p>
-          </div>
+        <div class="flex items-center gap-6">
+          <router-link to="/" class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <FileText class="w-6 h-6 text-white" />
+            </div>
+            <div class="hidden sm:block">
+              <h1 class="text-lg font-bold text-foreground">PDF解析助手</h1>
+              <p class="text-xs text-muted-foreground">智能识别 · 高效转换</p>
+            </div>
+          </router-link>
+
+          <nav class="hidden md:flex items-center gap-1">
+            <router-link
+              to="/"
+              class="px-3 py-2 text-sm rounded-lg transition-colors"
+              :class="$route.path === '/' ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'"
+            >
+              上传解析
+            </router-link>
+            <router-link
+              to="/history"
+              class="px-3 py-2 text-sm rounded-lg transition-colors"
+              :class="$route.path === '/history' ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'"
+            >
+              历史记录
+            </router-link>
+          </nav>
         </div>
 
         <div class="flex items-center gap-2">

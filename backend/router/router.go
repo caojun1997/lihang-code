@@ -60,8 +60,15 @@ func SetRouter(r *gin.Engine) {
 	{
 		tasks := v1.Group("/tasks")
 		{
-			tasks.POST("", middleware.RequireAuth(), taskController.CreateTask)
+			tasks.POST("", taskController.CreateTask)
+			tasks.POST("/batch", taskController.CreateBatchTasks)
+			tasks.POST("/upload", taskController.UploadBatchFiles)
+			tasks.POST("/url", taskController.UploadFileURL)
 			tasks.GET("", taskController.ListTasks)
+			tasks.GET("/stats", taskController.GetTaskStats)
+			tasks.GET("/batch-status", taskController.GetBatchStatus)
+			tasks.GET("/download-all", taskController.DownloadBatchResults)
+			tasks.DELETE("/batch", middleware.RequireAuth(), taskController.DeleteBatchTasks)
 			tasks.GET("/:task_id", taskController.GetTask)
 			tasks.GET("/:task_id/status", taskController.GetTaskStatus)
 			tasks.GET("/:task_id/result", taskController.GetTaskResult)

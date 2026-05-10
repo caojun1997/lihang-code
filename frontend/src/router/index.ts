@@ -8,9 +8,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/HomeView.vue'),
   },
   {
-    path: '/tasks',
-    name: 'tasks',
-    component: () => import('@/views/TaskListView.vue'),
+    path: '/history',
+    name: 'history',
+    component: () => import('@/views/HistoryView.vue'),
   },
   {
     path: '/tasks/:id',

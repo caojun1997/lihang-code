@@ -3,7 +3,7 @@
     <template #header-actions>
       <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
         <span class="text-muted-foreground">总解析</span>
-        <span class="font-semibold text-foreground">{{ totalTasks }}</span>
+        <span class="font-semibold text-foreground">{{ stats.total }}</span>
         <span class="text-muted-foreground">次</span>
       </div>
     </template>
@@ -35,6 +35,7 @@
                 <div class="flex items-center gap-2">
                   <div class="w-1 h-6 bg-primary rounded-full" />
                   <h2 class="text-lg font-semibold text-foreground">上传文件</h2>
+                  <span class="text-xs text-muted-foreground ml-auto">支持批量上传</span>
                 </div>
 
                 <FileUploader
@@ -60,6 +61,7 @@
                 <div class="flex items-center gap-2">
                   <div class="w-1 h-6 bg-primary rounded-full" />
                   <h2 class="text-lg font-semibold text-foreground">配置解析选项</h2>
+                  <span class="text-xs text-muted-foreground ml-auto">已选择 {{ selectedFiles.length }} 个文件</span>
                 </div>
 
                 <FormatSelector
@@ -84,7 +86,7 @@
                   >
                     <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
                     <Rocket v-else class="w-4 h-4" />
-                    {{ isUploading ? '解析中...' : '开始解析' }}
+                    {{ isUploading ? '上传中...' : '开始解析' }}
                   </button>
                 </div>
               </div>
@@ -120,6 +122,13 @@
                       <Copy class="w-4 h-4" />
                       复制全部
                     </button>
+                    <router-link
+                      to="/history"
+                      class="h-10 px-4 border border-border rounded-lg font-medium hover:bg-muted transition-all flex items-center gap-2"
+                    >
+                      <History class="w-4 h-4" />
+                      查看历史
+                    </router-link>
                   </div>
                 </div>
 
@@ -128,80 +137,55 @@
                     <Loader2 class="w-8 h-8 text-primary animate-spin" />
                   </div>
                   <p class="text-muted-foreground">正在解析中，请稍候...</p>
+                  <p class="text-sm text-muted-foreground mt-1">{{ processingTasks.length }} 个任务处理中</p>
                 </div>
 
                 <div class="flex items-center justify-between">
                   <button
                     class="h-10 px-6 border border-border rounded-lg font-medium hover:bg-muted transition-all flex items-center gap-2"
-                    @click="prevStep"
+                    @click="resetUpload"
                   >
                     <ArrowLeft class="w-4 h-4" />
-                    重新解析
+                    继续上传
                   </button>
                 </div>
               </div>
             </div>
           </Transition>
 
-          <div v-if="currentStep === 2 && hasProcessingTasks" class="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <div v-if="currentStep >= 1 && tasks.length > 0" class="bg-card rounded-xl border border-border p-6 shadow-sm">
             <div class="flex items-center gap-2 mb-4">
               <div class="w-1 h-6 bg-primary rounded-full" />
-              <h2 class="text-lg font-semibold text-foreground">处理中</h2>
+              <h2 class="text-lg font-semibold text-foreground">当前任务</h2>
             </div>
 
-            <div class="space-y-3">
+            <div class="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin">
               <TaskCard
-                v-for="task in processingTasks"
+                v-for="task in tasks.slice(0, 10)"
                 :key="task.task_id"
                 :task="task"
                 :is-active="currentTask?.task_id === task.task_id"
+                :show-actions="task.status === 'completed'"
                 @click="selectTask(task)"
+                @view="viewTask(task)"
+                @download="downloadTask(task)"
+                @copy="copyTask(task)"
+                @delete="deleteTask(task)"
               />
+            </div>
+
+            <div v-if="tasks.length > 10" class="mt-4 text-center">
+              <router-link
+                to="/history"
+                class="text-sm text-primary hover:underline"
+              >
+                查看全部 {{ tasks.length }} 个任务 →
+              </router-link>
             </div>
           </div>
         </div>
 
         <div class="space-y-6">
-          <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <div class="w-1 h-6 bg-primary rounded-full" />
-                <h2 class="text-base font-semibold text-foreground">任务列表</h2>
-              </div>
-              <span class="text-xs text-muted-foreground">{{ tasks.length }} 个任务</span>
-            </div>
-
-            <div class="space-y-3 max-h-[400px] overflow-y-auto scrollbar-thin">
-              <TransitionGroup
-                enter-active-class="transition duration-300 ease-out"
-                enter-from-class="opacity-0 -translate-x-2"
-                enter-to-class="opacity-100 translate-x-0"
-                leave-active-class="transition duration-200 ease-in"
-                leave-from-class="opacity-100 translate-x-0"
-                leave-to-class="opacity-0 translate-x-2"
-              >
-                <TaskCard
-                  v-for="task in tasks"
-                  :key="task.task_id"
-                  :task="task"
-                  :is-active="currentTask?.task_id === task.task_id"
-                  @click="selectTask(task)"
-                  @view="viewTask(task)"
-                  @download="downloadTask(task)"
-                  @copy="copyTask(task)"
-                  @delete="deleteTask(task)"
-                />
-              </TransitionGroup>
-
-              <div v-if="tasks.length === 0" class="text-center py-8">
-                <div class="w-12 h-12 bg-muted rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <FileText class="w-6 h-6 text-muted-foreground" />
-                </div>
-                <p class="text-sm text-muted-foreground">暂无任务</p>
-              </div>
-            </div>
-          </div>
-
           <ResultPreview
             :content="currentResult?.content"
             :file-name="currentTask?.file_name"
@@ -217,16 +201,30 @@
             <div class="space-y-3">
               <div class="flex items-center justify-between">
                 <span class="text-sm text-muted-foreground">总解析次数</span>
-                <span class="font-semibold text-foreground">{{ totalTasks }}</span>
+                <span class="font-semibold text-foreground">{{ stats.total }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-muted-foreground">成功次数</span>
-                <span class="font-semibold text-emerald-600">{{ completedTasks.length }}</span>
+                <span class="font-semibold text-emerald-600">{{ stats.completed }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-muted-foreground">处理中</span>
-                <span class="font-semibold text-blue-600">{{ processingTasks.length }}</span>
+                <span class="font-semibold text-blue-600">{{ stats.processing }}</span>
               </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-muted-foreground">失败</span>
+                <span class="font-semibold text-red-600">{{ stats.failed }}</span>
+              </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-border">
+              <router-link
+                to="/history"
+                class="flex items-center justify-center gap-2 w-full py-2 text-sm text-primary hover:bg-muted rounded-lg transition-colors"
+              >
+                <History class="w-4 h-4" />
+                查看完整历史
+              </router-link>
             </div>
           </div>
         </div>
@@ -243,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import MainLayout from '@/layouts/MainLayout.vue'
 import StepIndicator from '@/components/common/StepIndicator.vue'
@@ -253,14 +251,14 @@ import TaskCard from '@/components/task/TaskCard.vue'
 import ResultPreview from '@/components/result/ResultPreview.vue'
 import ToastNotification from '@/components/common/ToastNotification.vue'
 import {
-  FileText,
   ArrowRight,
   ArrowLeft,
   Download,
   Copy,
   Rocket,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  History
 } from 'lucide-vue-next'
 import type { Task } from '@/api/types'
 
@@ -290,13 +288,40 @@ const currentResult = computed(() => taskStore.currentResult)
 const isUploading = computed(() => taskStore.isUploading)
 const completedTasks = computed(() => taskStore.completedTasks)
 const processingTasks = computed(() => taskStore.processingTasks)
-const totalTasks = computed(() => tasks.value.length)
+const stats = computed(() => taskStore.stats)
 const hasCompletedTasks = computed(() => completedTasks.value.length > 0)
 const hasProcessingTasks = computed(() => processingTasks.value.length > 0)
 
+let pollingInterval: number | null = null
+
 onMounted(async () => {
   await taskStore.fetchTasks()
+  await taskStore.fetchStats()
+  startPolling()
 })
+
+onUnmounted(() => {
+  stopPolling()
+})
+
+function startPolling() {
+  pollingInterval = window.setInterval(async () => {
+    const processing = tasks.value.filter(t => 
+      ['pending', 'uploading', 'processing'].includes(t.status)
+    )
+    
+    if (processing.length > 0) {
+      await taskStore.pollBatchStatus(processing.map(t => t.task_id))
+    }
+  }, 3000)
+}
+
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
 
 watch(
   () => processingTasks.value.length,
@@ -327,40 +352,26 @@ async function startParsing() {
   if (selectedFiles.value.length === 0) return
 
   try {
-    for (const file of selectedFiles.value) {
-      await taskStore.createTask(file, outputFormat.value)
+    if (selectedFiles.value.length === 1) {
+      await taskStore.createTask(selectedFiles.value[0], outputFormat.value)
+    } else {
+      await taskStore.uploadBatchFiles(selectedFiles.value, outputFormat.value)
     }
 
     showToast(`已提交 ${selectedFiles.value.length} 个任务`, 'success')
     uploaderRef.value?.clearFiles()
     selectedFiles.value = []
-
-    for (const task of processingTasks.value) {
-      pollTaskStatus(task.task_id)
-    }
+    nextStep()
   } catch (error: any) {
     showToast(error.message || '解析失败', 'error')
   }
 }
 
-function pollTaskStatus(taskId: string) {
-  const poll = async () => {
-    const task = tasks.value.find(t => t.task_id === taskId)
-    if (!task) return
-
-    if (task.status === 'completed' || task.status === 'failed') {
-      if (task.status === 'completed') {
-        await taskStore.fetchTaskResult(taskId)
-        showToast('解析完成', 'success')
-      }
-      return
-    }
-
-    await taskStore.updateTaskStatus(taskId, task.status, (task.progress || 0) + 10)
-    setTimeout(poll, 2000)
-  }
-
-  poll()
+function resetUpload() {
+  currentStep.value = 0
+  selectedFiles.value = []
+  taskStore.currentTask = null
+  taskStore.currentResult = null
 }
 
 function selectTask(task: Task) {
@@ -409,6 +420,24 @@ async function deleteTask(task: Task) {
   }
 }
 
+async function downloadAllResults() {
+  const completedIds = completedTasks.value.map(t => t.task_id)
+  if (completedIds.length === 0) return
+  
+  try {
+    await taskStore.downloadBatchResults(completedIds)
+    showToast('下载成功', 'success')
+  } catch {
+    showToast('下载失败', 'error')
+  }
+}
+
+async function copyAllResults() {
+  for (const task of completedTasks.value.slice(0, 5)) {
+    await copyTask(task)
+  }
+}
+
 function handleCopy() {
   showToast('已复制到剪贴板', 'success')
 }
@@ -416,18 +445,6 @@ function handleCopy() {
 function handleDownload(_format: string) {
   if (currentTask.value) {
     downloadTask(currentTask.value)
-  }
-}
-
-async function downloadAllResults() {
-  for (const task of completedTasks.value) {
-    await downloadTask(task)
-  }
-}
-
-async function copyAllResults() {
-  for (const task of completedTasks.value) {
-    await copyTask(task)
   }
 }
 

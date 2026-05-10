@@ -16,7 +16,7 @@ export interface Task {
   page_count?: number
   output_format: 'markdown' | 'txt' | 'json'
   status: TaskStatus
-  progress?: number
+  progress: number
   current_page?: number
   total_pages?: number
   error_msg?: string
@@ -26,33 +26,60 @@ export interface Task {
 
 export interface TaskStatusResponse {
   task_id: string
+  file_name?: string
   status: TaskStatus
   progress: number
   current_page?: number
   total_pages?: number
   error_msg?: string
+  output_path?: string
+  created_at?: string
   updated_at?: string
 }
 
 export interface TaskResult {
   task_id: string
+  file_name?: string
   content: string
+  format?: string
   file_path?: string
-  word_count: number
+  word_count?: number
   created_at: string
 }
 
 export interface CreateTaskResponse {
   task_id: string
+  file_name?: string
+  file_size?: number
   status: string
+  progress?: number
+  created_at: string
+}
+
+export interface BatchTaskResponse {
+  task_ids: string[]
+  tasks?: CreateTaskResponse[]
+  total: number
   created_at: string
 }
 
 export interface TaskListResponse {
   tasks: Task[]
+  pagination: {
+    page: number
+    page_size: number
+    total: number
+    total_page: number
+  }
+  stats: TaskStats
+}
+
+export interface TaskStats {
   total: number
-  page: number
-  size: number
+  pending: number
+  processing: number
+  completed: number
+  failed: number
 }
 
 export interface User {
@@ -73,4 +100,12 @@ export interface UploadProgress {
   loaded: number
   total: number
   percentage: number
+}
+
+export interface ParseOptions {
+  preserve_tables?: boolean
+  extract_images?: boolean
+  latex_formulas?: boolean
+  preserve_headings?: boolean
+  language?: string
 }

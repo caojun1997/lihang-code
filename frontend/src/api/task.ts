@@ -6,12 +6,14 @@ import type {
   TaskResult,
   CreateTaskResponse,
   TaskListResponse,
+  TaskStats,
+  BatchTaskResponse,
   UploadProgress,
 } from './types'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 60000,
+  timeout: 120000,
 })
 
 api.interceptors.request.use((config) => {
@@ -61,18 +63,75 @@ export const taskApi = {
     })
   },
 
+  uploadBatchFiles: async (
+    files: File[],
+    outputFormat: 'markdown' | 'txt' | 'json',
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<ApiResponse<BatchTaskResponse>> => {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+    formData.append('output_format', outputFormat)
+
+    return api.post('/tasks/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress: UploadProgress = {
+            loaded: progressEvent.loaded,
+            total: progressEvent.total,
+            percentage: Math.round((progressEvent.loaded * 100) / progressEvent.total),
+          }
+          onProgress(progress)
+        }
+      },
+    })
+  },
+
+  uploadFromUrl: async (
+    url: string,
+    fileName?: string,
+    outputFormat: 'markdown' | 'txt' | 'json' = 'markdown'
+  ): Promise<ApiResponse<CreateTaskResponse>> => {
+    return api.post('/tasks/url', {
+      url,
+      file_name: fileName,
+      output_format: outputFormat,
+    })
+  },
+
   getTask: async (taskId: string): Promise<ApiResponse<Task>> => {
     return api.get(`/tasks/${taskId}`)
   },
 
   getTaskStatus: async (taskId: string): Promise<ApiResponse<{
     task_id: string
+    file_name?: string
     status: TaskStatus
     progress: number
-    current_page?: number
-    total_pages?: number
+    error_msg?: string
+    created_at?: string
+    updated_at?: string
   }>> => {
     return api.get(`/tasks/${taskId}/status`)
+  },
+
+  getBatchStatus: async (taskIds: string[]): Promise<ApiResponse<{
+    tasks: Array<{
+      task_id: string
+      file_name?: string
+      status: TaskStatus
+      progress: number
+      error_msg?: string
+    }>
+    total: number
+  }>> => {
+    return api.get('/tasks/batch-status', {
+      params: { ids: taskIds.join(',') },
+    })
   },
 
   getTaskResult: async (taskId: string): Promise<ApiResponse<TaskResult>> => {
@@ -86,16 +145,33 @@ export const taskApi = {
     return response
   },
 
+  downloadBatchResults: async (taskIds: string[]): Promise<Blob> => {
+    const response = await api.get('/tasks/download-all', {
+      params: { ids: taskIds.join(',') },
+      responseType: 'blob',
+    }) as unknown as Blob
+    return response
+  },
+
   listTasks: async (params: {
     page?: number
     page_size?: number
     status?: string
+    search?: string
   }): Promise<ApiResponse<TaskListResponse>> => {
     return api.get('/tasks', { params })
   },
 
+  getTaskStats: async (): Promise<ApiResponse<TaskStats>> => {
+    return api.get('/tasks/stats')
+  },
+
   deleteTask: async (taskId: string): Promise<ApiResponse<null>> => {
     return api.delete(`/tasks/${taskId}`)
+  },
+
+  deleteBatchTasks: async (taskIds: string[]): Promise<ApiResponse<{ deleted: number }>> => {
+    return api.delete('/tasks/batch', { data: { task_ids: taskIds } })
   },
 }
 
